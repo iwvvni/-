@@ -1,0 +1,52 @@
+#include <stdio.h>
+
+void make_brackets(char* text, int open, int close, int n, int position) {
+    if (position == 2 * n) {
+        text[position] = '\0';
+        printf("%s\n", text);
+        return;
+    }
+    
+    if (open < n) {
+        text[position] = '(';
+        make_brackets(text, open + 1, close, n, position + 1);
+    }
+    
+    if (close < open) {
+        text[position] = ')';
+        make_brackets(text, open, close + 1, n, position + 1);
+    }
+}
+
+int main() {
+    int n;
+    
+    printf("Программа для генерации правильных скобочных последовательностей.\n");
+    printf("Введите количество пар скобок: ");
+    
+    if (scanf("%d", &n) != 1) {
+        printf("Ошибка: введите целое число!\n");
+        return 1;
+    }
+    if (getchar() != '\n') {
+    printf("Ошибка: введите целое число!\n");
+    return 1;
+}
+        if (n <= 0) {
+        printf("Ошибка: число должно быть натуральным (N > 0)!\n");
+        return 1;
+    }
+    
+    if (n > 10) {
+        printf("Предупреждение: для N > 10 количество последовательностей очень велико!\n");
+        return 1;
+    }
+    
+    char text[100];
+    
+    printf("\nВот какие бывают варианты:\n");
+    make_brackets(text, 0, 0, n, 0);
+    
+    printf("Готово!\n");
+    return 0;
+}
