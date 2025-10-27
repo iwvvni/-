@@ -1,0 +1,31 @@
+#include <stdio.h>
+#include <math.h>
+
+int main() {
+        double x, y, z, U;
+        double max_U = -1000;
+        double best_x, best_y, best_z;
+        printf("Вычисление значений функции U и поиск максимума:\n\n");
+
+        for(x = 1.0; x <= 3.0; x += 1.3) {
+                for(y = -0.2; y >= -0.4; y -= 0.1) {
+                        for(z = 0.5; z <= 1.5; z += 0.8) {
+                                double part1 = y*y + (4*x*x)/3.0;
+                                double part2 = (sin(x*x*x - y) - fabs(x*y))/(x*z);
+                                U = (-sqrt(part1) + part2);
+                                if (U > max_U) {
+                                        max_U = U;
+                                        best_x = x;
+                                        best_y = y;
+                                        best_z = z;
+                                }
+                                printf("x=%.1f y=%.1f z=%.1f -> U=%.3f\n", x, y, z, U);
+                        }
+                }
+        }
+        printf("\nМаксимальное значение функции: \n");
+        printf("U_max = %.3f\n", max_U);
+        printf("При значениях переменных: x=%.1f, y=%.1f, z=%.1f\n", best_x, best_y, best_z);
+
+        return 0;
+}
