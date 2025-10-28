@@ -1,0 +1,32 @@
+#!/bin/bash
+
+if [ $# -ne 2 ]; then
+    echo "Использование: $0 суффикс папка"
+    echo "Пример: $0 old myfolder"
+    exit 1
+fi
+
+suffix=$1
+folder=$2
+
+echo "Я добавлю '_$suffix' к файлам в папке '$folder'"
+
+cd "$folder" || exit
+
+for file in *; do
+    if [ -f "$file" ]; then
+        filename="${file%.*}"
+        extension="${file##*.}"
+        
+        if [[ "$file" == *.* ]] && [ "$filename" != "$extension" ]; then
+            new_name="${filename}_${suffix}.${extension}"
+        else
+            new_name="${file}_${suffix}"
+        fi
+        
+        mv "$file" "$new_name"
+        echo "Переименовал: $file -> $new_name"
+    fi
+done
+
+echo "Готово! Все файлы переименованы!"
