@@ -1,0 +1,554 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+/**
+ * Структура данных для хранения информации о YouTube-видео
+ */
+typedef struct Video {
+    int id;                     // Уникальный идентификатор видео
+    char title[100];            // Название видео
+    char channel[50];           // Название канала
+    int duration_seconds;       // Длительность в секундах
+    int views;                  // Количество просмотров
+    int likes;                  // Количество лайков
+    char upload_date[11];       // Дата загрузки (YYYY-MM-DD)
+    struct Video* next;         // Указатель на следующий элемент списка
+} Video;
+
+/**
+ * Структура для управления базой данных видео
+ */
+typedef struct {
+    Video* head;                // Указатель на первый элемент списка
+    Video* tail;                // Указатель на последний элемент списка
+    int video_count;            // Общее количество видео в базе
+    int next_video_id;          // ID для следующего добавляемого видео
+} VideoDatabase;
+
+// Прототипы функций
+VideoDatabase* database_create();
+void database_destroy(VideoDatabase* db);
+int database_add_video(VideoDatabase* db, const char* title, const char* channel,
+                      int duration, int views, int likes, const char* date);
+int database_remove_video(VideoDatabase* db, int video_id);
+Video* database_find_video_by_id(VideoDatabase* db, int video_id);
+void database_display_all(VideoDatabase* db);
+void database_search_by_channel(VideoDatabase* db, const char* channel_name);
+void database_search_popular_videos(VideoDatabase* db, int min_views);
+int database_save_to_file(VideoDatabase* db, const char* filename);
+int database_load_from_file(VideoDatabase* db, const char* filename);
+void database_display_statistics(VideoDatabase* db);
+
+/**
+ * Создание и инициализация новой базы данных
+ */
+VideoDatabase* database_create() {
+    VideoDatabase* db = (VideoDatabase*)malloc(sizeof(VideoDatabase));
+    if (db == NULL) {
+        return NULL;
+    }
+    
+    db->head = NULL;
+    db->tail = NULL;
+    db->video_count = 0;
+    db->next_video_id = 1;
+    
+    return db;
+}
+
+/**
+ * Освобождение памяти, выделенной под базу данных
+ */
+void database_destroy(VideoDatabase* db) {
+    if (db == NULL) {
+        return;
+    }
+    
+    Video* current = db->head;
+    Video* next_video;
+    
+    while (current != NULL) {
+        next_video = current->next;
+        free(current);
+        current = next_video;
+    }
+    
+    free(db);
+}
+
+/**
+ * Добавление нового видео в базу данных
+ * Возвращает ID добавленного видео или -1 при ошибке
+ */
+int database_add_video(VideoDatabase* db, const char* title, const char* channel,
+                      int duration, int views, int likes, const char* date) {
+    
+    if (db == NULL  channel == NULL || date == NULL) {
+        return -1;
+    }
+    
+    // Создание нового элемента списка
+    Video* new_video = (Video*)malloc(sizeof(Video));
+    if (new_video == NULL) {
+        return -1;
+    }
+    
+    // Инициализация полей структуры
+    new_video->id = db->next_video_id++;
+    strncpy(new_video->title, title, sizeof(new_video->title) - 1);
+    new_video->title[sizeof(new_video->title) - 1] = '\0';
+    
+    strncpy(new_video->channel, channel, sizeof(new_video->channel) - 1);
+    new_video->channel[sizeof(new_video->channel) - 1] = '\0';
+    
+    new_video->duration_seconds = duration;
+    new_video->views = views;
+    new_video->likes = likes;
+    
+    strncpy(new_video->upload_date, date, sizeof(new_video->upload_date) - 1);
+    new_video->upload_date[sizeof(new_video->upload_date) - 1] = '\0';
+    
+    new_video->next = NULL;
+    
+    // Добавление в список
+    if (db->head == NULL) {
+        db->head = new_video;
+        db->tail = new_video;
+    } else {
+        db->tail->next = new_video;
+        db->tail = new_video;
+    }
+    
+    db->video_count++;
+    return new_video->id;
+}
+/**
+ * Удаление видео из базы данных по ID
+ * Возвращает 1 при успешном удалении, 0 если видео не найдено
+ */
+int database_remove_video(VideoDatabase* db, int video_id) {
+    if (db == NULL || db->head == NULL) {
+        return 0;
+    }
+    
+    Video* current = db->head;
+    Video* previous = NULL;
+    
+    // Поиск видео с указанным ID
+    while (current != NULL && current->id != video_id) {
+        previous = current;
+        current = current->next;
+    }
+    
+    if (current == NULL) {
+        return 0; // Видео не найдено
+    }
+    
+    // Удаление из списка
+    if (previous == NULL) {
+        db->head = current->next;
+    } else {
+        previous->next = current->next;
+    }
+    
+    if (current == db->tail) {
+        db->tail = previous;
+    }
+    
+    free(current);
+    db->video_count--;
+    
+    return 1;
+}
+
+/**
+ * Поиск видео в базе данных по ID
+ * Возвращает указатель на найденное видео или NULL
+ */
+Video* database_find_video_by_id(VideoDatabase* db, int video_id) {
+    if (db == NULL) {
+        return NULL;
+    }
+    
+    Video* current = db->head;
+    while (current != NULL) {
+        if (current->id == video_id) {
+            return current;
+        }
+        current = current->next;
+    }
+    
+    return NULL;
+}
+
+/**
+ * Отображение всех видео в базе данных в табличном формате
+ */
+void database_display_all(VideoDatabase* db) {
+    if (db == NULL || db->head == NULL) {
+        printf("Database is empty.\n");
+        return;
+    }
+    
+    printf("\n=== YouTube Video Database (%d videos) ===\n", db->video_count);
+    printf("┌─────┬─────────────────────────────────────┬────────────────────┬──────────┬──────────┬──────────┬────────────┐\n");
+    printf("│ ID  │ Title                               │ Channel            │ Duration │ Views    │ Likes    │ Uploaded   │\n");
+    printf("├─────┼─────────────────────────────────────┼────────────────────┼──────────┼──────────┼──────────┼────────────┤\n");
+    
+    Video* current = db->head;
+    while (current != NULL) {
+        int minutes = current->duration_seconds / 60;
+        int seconds = current->duration_seconds % 60;
+        
+        printf("│ %3d │ %-35s │ %-18s │ %02d:%02d    │ %8d │ %8d │ %-10s │\n",
+               current->id,
+               current->title,
+               current->channel,
+               minutes, seconds,
+               current->views,
+               current->likes,
+               current->upload_date);
+        
+        current = current->next;
+    }
+    
+    printf("└─────┴─────────────────────────────────────┴────────────────────┴──────────┴──────────┴──────────┴────────────┘\n");
+}
+
+/**
+ * Поиск видео по названию канала
+ */
+void database_search_by_channel(VideoDatabase* db, const char* channel_name) {
+    if (db == NULL  db->head == NULL) {
+        printf("No videos found.\n");
+        return;
+    }
+    
+    Video* current = db->head;
+    int found_count = 0;
+    
+    printf("\n=== Search Results: Channel '%s' ===\n", channel_name);
+    
+    while (current != NULL) {
+        if (strstr(current->channel, channel_name) != NULL) {
+            printf("Video ID: %d\n", current->id);
+            printf("Title: %s\n", current->title);
+            printf("Views: %d, Likes: %d\n", current->views, current->likes);
+            printf("Uploaded: %s\n\n", current->upload_date);
+            found_count++;
+        }
+        current = current->next;
+    }
+    
+    if (found_count == 0) {
+        printf("No videos found for this channel.\n");
+    } else {
+        printf("Total found: %d video(s)\n", found_count);
+    }
+}
+
+/**
+ * Поиск популярных видео с минимальным количеством просмотров
+ */
+void database_search_popular_videos(VideoDatabase* db, int min_views) {
+    if (db == NULL || db->head == NULL) {
+        printf("No videos found.\n");
+return;
+    }
+    
+    Video* current = db->head;
+    int found_count = 0;
+    
+    printf("\n=== Popular Videos (%d+ views) ===\n", min_views);
+    
+    while (current != NULL) {
+        if (current->views >= min_views) {
+            printf("ID: %d | %s\n", current->id, current->title);
+            printf("   Channel: %s, Views: %d, Like Ratio: %.1f%%\n",
+                   current->channel,
+                   current->views,
+                   (current->views > 0) ? 
+                   ((float)current->likes / current->views * 100) : 0.0);
+            found_count++;
+        }
+        current = current->next;
+    }
+    
+    if (found_count == 0) {
+        printf("No videos meet the criteria.\n");
+    } else {
+        printf("Total found: %d video(s)\n", found_count);
+    }
+}
+
+/**
+ * Сохранение базы данных в текстовый файл
+ */
+int database_save_to_file(VideoDatabase* db, const char* filename) {
+    if (db == NULL || filename == NULL) {
+        return 0;
+    }
+    
+    FILE* file = fopen(filename, "w");
+    if (file == NULL) {
+        return 0;
+    }
+    
+    // Запись заголовка
+    fprintf(file, "ID|Title|Channel|Duration|Views|Likes|UploadDate\n");
+    
+    Video* current = db->head;
+    while (current != NULL) {
+        fprintf(file, "%d|%s|%s|%d|%d|%d|%s\n",
+                current->id,
+                current->title,
+                current->channel,
+                current->duration_seconds,
+                current->views,
+                current->likes,
+                current->upload_date);
+        current = current->next;
+    }
+    
+    fclose(file);
+    return 1;
+}
+
+/**
+ * Загрузка базы данных из текстового файла
+ */
+int database_load_from_file(VideoDatabase* db, const char* filename) {
+    if (db == NULL || filename == NULL) {
+        return 0;
+    }
+    
+    FILE* file = fopen(filename, "r");
+    if (file == NULL) {
+        return 0; // Файл не существует - это нормально при первом запуске
+    }
+    
+    char buffer[256];
+    // Пропускаем заголовок
+    fgets(buffer, sizeof(buffer), file);
+    
+    while (fgets(buffer, sizeof(buffer), file) != NULL) {
+        char title[100], channel[50], date[11];
+        int id, duration, views, likes;
+        
+        if (sscanf(buffer, "%d|%99[^|]|%49[^|]|%d|%d|%d|%10s",
+                   &id, title, channel, &duration, &views, &likes, date) == 7) {
+            
+            database_add_video(db, title, channel, duration, views, likes, date);
+        }
+    }
+    
+    fclose(file);
+    return 1;
+}
+
+/**
+ * Отображение статистики базы данных
+ */
+void database_display_statistics(VideoDatabase* db) {
+    if (db == NULL || db->head == NULL) {
+        printf("Database is empty.\n");
+        return;
+    }
+    
+    Video* current = db->head;
+    int total_views = 0;
+    int total_likes = 0;
+    int total_duration = 0;
+    int max_views = 0;
+    Video* most_viewed = NULL;
+    
+    while (current != NULL) {
+        total_views += current->views;
+        total_likes += current->likes;
+        total_duration += current->duration_seconds;
+        
+        if (current->views > max_views) {
+            max_views = current->views;
+            most_viewed = current;
+        }
+        
+        current = current->next;
+    }
+    
+    printf("\n=== Database Statistics ===\n");
+    printf("Total videos: %d\n", db->video_count);
+    printf("Total views: %d\n", total_views);
+    printf("Total likes: %d\n", total_likes);
+    printf("Average views per video: %.0f\n", (float)total_views / db->video_count);
+    printf("Total watch time: %d hours %d minutes\n", 
+           total_duration / 3600, (total_duration % 3600) / 60);
+    
+    if (most_viewed != NULL) {
+        printf("\nMost popular video:\n");
+        printf("  ID: %d - %s\n", most_viewed->id, most_viewed->title);
+        printf("  Channel: %s\n", most_viewed->channel);
+        printf("  Views: %d\n", most_viewed->views);
+    }
+}
+/**
+ * Отображение главного меню программы
+ */
+void display_main_menu() {
+    printf("\n=== YouTube Video Database Manager ===\n");
+    printf("1. Display all videos\n");
+    printf("2. Add new video\n");
+    printf("3. Search videos by channel\n");
+    printf("4. Search popular videos\n");
+    printf("5. Delete video\n");
+    printf("6. Display statistics\n");
+    printf("7. Save database to file\n");
+    printf("8. Load database from file\n");
+    printf("0. Exit\n");
+    printf("Select option: ");
+}
+
+/**
+ * Получение корректного целого числа от пользователя
+ */
+int get_valid_integer(const char* prompt, int min, int max) {
+    int value;
+    char buffer[100];
+    
+    while (1) {
+        printf("%s (%d-%d): ", prompt, min, max);
+        
+        if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
+            continue;
+        }
+        
+        if (sscanf(buffer, "%d", &value) == 1 && value >= min && value <= max) {
+            return value;
+        }
+        
+        printf("Invalid input. Please enter a number between %d and %d.\n", min, max);
+    }
+}
+
+/**
+ * Получение строки от пользователя
+ */
+void get_input_string(const char* prompt, char* buffer, int max_length) {
+    printf("%s: ", prompt);
+    
+    if (fgets(buffer, max_length, stdin) == NULL) {
+        buffer[0] = '\0';
+        return;
+    }
+    
+    // Удаление символа новой строки
+    buffer[strcspn(buffer, "\n")] = '\0';
+}
+
+/**
+ * Основная функция программы
+ */
+int main() {
+    VideoDatabase* db = database_create();
+    if (db == NULL) {
+        printf("Error: Could not initialize database.\n");
+        return 1;
+    }
+    
+    // Автоматическая загрузка данных при запуске
+    database_load_from_file(db, "youtube_database.txt");
+    
+    int running = 1;
+    while (running) {
+        display_main_menu();
+        
+        int choice = get_valid_integer("", 0, 8);
+        
+        switch (choice) {
+            case 1: // Показать все видео
+                database_display_all(db);
+                break;
+                
+            case 2: { // Добавить новое видео
+                char title[100], channel[50], date[11];
+                int duration, views, likes;
+                
+                get_input_string("Video title", title, sizeof(title));
+                get_input_string("Channel name", channel, sizeof(channel));
+                duration = get_valid_integer("Duration (seconds)", 1, 86400);
+                views = get_valid_integer("Number of views", 0, 1000000000);
+                likes = get_valid_integer("Number of likes", 0, views);
+                get_input_string("Upload date (YYYY-MM-DD)", date, sizeof(date));
+                
+                int new_id = database_add_video(db, title, channel, duration, views, likes, date);
+                if (new_id != -1) {
+                    printf("Video added successfully. ID: %d\n", new_id);
+                } else {
+                    printf("Error: Could not add video.\n");
+                }
+                break;
+            }
+                
+            case 3: { // Поиск по каналу
+                char channel[50];
+                get_input_string("Enter channel name to search", channel, sizeof(channel));
+                database_search_by_channel(db, channel);
+                break;
+            }
+                
+            case 4: { // Поиск популярных видео
+                int min_views = get_valid_integer("Minimum views", 0, 1000000000);
+                database_search_popular_videos(db, min_views);
+                break;
+            }
+                
+            case 5: { // Удаление видео
+                if (db->video_count == 0) {
+                    printf("Database is empty.\n");
+                    break;
+                }
+                
+                database_display_all(db);
+                int video_id = get_valid_integer("Enter video ID to delete", 1, db->next_video_id - 1);
+if (database_remove_video(db, video_id)) {
+                    printf("Video ID %d deleted successfully.\n", video_id);
+                } else {
+                    printf("Error: Video not found.\n");
+                }
+                break;
+            }
+                
+            case 6: // Статистика
+                database_display_statistics(db);
+                break;
+                
+            case 7: // Сохранение в файл
+                if (database_save_to_file(db, "youtube_database.txt")) {
+                    printf("Database saved successfully.\n");
+                } else {
+                    printf("Error: Could not save database.\n");
+                }
+                break;
+                
+            case 8: // Загрузка из файла
+                if (database_load_from_file(db, "youtube_database.txt")) {
+                    printf("Database loaded successfully.\n");
+                    database_display_all(db);
+                } else {
+                    printf("Error: Could not load database.\n");
+                }
+                break;
+                
+            case 0: // Выход
+                running = 0;
+                // Автосохранение перед выходом
+                database_save_to_file(db, "youtube_database.txt");
+                printf("Database saved. Exiting program.\n");
+                break;
+        }
+    }
+    
+    database_destroy(db);
+    return 0;
+}
