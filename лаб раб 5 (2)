@@ -1,0 +1,52 @@
+
+            case 1:
+                print_videos(&db);
+                break;
+            case 2: {
+                char title[100], channel[50];
+                int views, likes;
+                
+                printf("Title: ");
+                fgets(title, 100, stdin);
+                title[strcspn(title, "\n")] = '\0';
+                
+                printf("Channel: ");
+                fgets(channel, 50, stdin);
+                channel[strcspn(channel, "\n")] = '\0';
+                
+                printf("Views: ");
+                scanf("%d", &views);
+                printf("Likes: ");
+                scanf("%d", &likes);
+                getchar();
+                
+                add_video(&db, title, channel, views, likes);
+                break;
+            }
+            case 3: {
+                char channel[50];
+                printf("Channel to search: ");
+                fgets(channel, 50, stdin);
+                channel[strcspn(channel, "\n")] = '\0';
+                search_by_channel(&db, channel);
+                break;
+            }
+            case 4: {
+                int id;
+                printf("Video ID to delete: ");
+                scanf("%d", &id);
+                getchar();
+                delete_video(&db, id);
+                break;
+            }
+            case 5:
+                save_to_file(&db, "youtube_db.txt");
+                printf("Data saved. Goodbye.\n");
+                break;
+            default:
+                printf("Invalid choice.\n");
+        }
+    } while(choice != 5);
+
+    return 0;
+}
