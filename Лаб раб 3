@@ -2,111 +2,148 @@
 #include <stdlib.h>
 
 int main(int argc, char** argv) {
+    // Проверка корректности аргументов командной строки
     if (argc != 2) {
-        printf("Ошибка: Использование: %s <имя_файла>\n", argv[0]);
-        return 1;
+        fprintf(stderr, "Использование: %s <input_file>\n", argv[0]);
+        return EXIT_FAILURE;
     }
     
-    char* filename = argv[1];
+    const char* filename = argv[1];
     
-    FILE* file = fopen(filename, "r");
-    if (file == NULL) {
-        printf("Ошибка: Не удалось открыть файл '%s'\n", filename);
-        return 1;
+    // Открытие входного файла
+    FILE* input_file = fopen(filename, "r");
+    if (input_file == NULL) {
+        perror("Ошибка открытия файла");
+        return EXIT_FAILURE;
     }
     
-    int n, m;
-    if (fscanf(file, "%d %d", &n, &m) != 2) {
-        printf("Ошибка: Некорректный формат файла\n");
-        fclose(file);
-        return 1;
+    // Чтение размеров матрицы
+    int rows, cols;
+    if (fscanf(input_file, "%d %d", &rows, &cols) != 2) {
+        fprintf(stderr, "Ошибка: некорректный формат заголовка файла\n");
+        fclose(input_file);
+        return EXIT_FAILURE;
     }
     
-    if (n <= 0 || m <= 0) {
-        printf("Ошибка: Размеры матрицы должны быть положительными\n");
-        fclose(file);
-        return 1;
+    // Валидация размеров матрицы
+    if (rows <= 0 || cols <= 0) {
+        fprintf(stderr, "Ошибка: недопустимые размеры матрицы: %d x %d\n", rows, cols);
+        fclose(input_file);
+return EXIT_FAILURE;
     }
     
-    int matrix = (int)malloc(n * sizeof(int*));
-    for (int i = 0; i < n; i++) {
-        matrix[i] = (int*)malloc(m * sizeof(int));
+    // Динамическое выделение памяти для матрицы
+    int matrix = (int)malloc(rows * sizeof(int*));
+    if (matrix == NULL) {
+        perror("Ошибка выделения памяти");
+        fclose(input_file);
+        return EXIT_FAILURE;
     }
     
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < m; j++) {
-            if (fscanf(file, "%d", &matrix[i][j]) != 1) {
-                printf("Ошибка: Недостаточно данных в файле\n");
-                fclose(file);
+    for (int i = 0; i < rows; i++) {
+        matrix[i] = (int*)malloc(cols * sizeof(int));
+        if (matrix[i] == NULL) {
+            perror("Ошибка выделения памяти");
+            // Освобождение ранее выделенной памяти
+            for (int j = 0; j < i; j++) free(matrix[j]);
+            free(matrix);
+            fclose(input_file);
+            return EXIT_FAILURE;
+        }
+    }
+    
+    // Заполнение матрицы данными из файла
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            if (fscanf(input_file, "%d", &matrix[i][j]) != 1) {
+                fprintf(stderr, "Ошибка: недостаточно данных для заполнения матрицы\n");
+                // Освобождение ресурсов
                 for (int k = 0; k <= i; k++) free(matrix[k]);
                 free(matrix);
-                return 1;
+                fclose(input_file);
+                return EXIT_FAILURE;
             }
         }
     }
     
-    fclose(file);
+    fclose(input_file);
     
-    printf("\nИсходная матрица %dx%d:\n", n, m);
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < m; j++) {
-            printf("%4d ", matrix[i][j]);
+    // Вывод исходной матрицы
+    printf("=== ИСХОДНАЯ МАТРИЦА (%d × %d) ===\n", rows, cols);
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            printf("%5d", matrix[i][j]);
         }
         printf("\n");
     }
     
-    int* min_array = (int*)malloc(n * sizeof(int));
+    // Создание массива минимальных элементов строк
+    int* row_minima = (int*)malloc(rows * sizeof(int));
+    if (row_minima == NULL) {
+        perror("Ошибка выделения памяти");
+        for (int i = 0; i < rows; i++) free(matrix[i]);
+        free(matrix);
+        return EXIT_FAILURE;
+    }
     
-    for (int i = 0; i < n; i++) {
-        int min = matrix[i][0];
-        for (int j = 1; j < m; j++) {
-            if (matrix[i][j] < min) {
-                min = matrix[i][j];
+    // Поиск минимальных элементов в каждой строке
+    for (int i = 0; i < rows; i++) {
+        int current_min = matrix[i][0];
+        for (int j = 1; j < cols; j++) {
+            if (matrix[i][j] < current_min) {
+                current_min = matrix[i][j];
             }
         }
-        min_array[i] = min;
+        row_minima[i] = current_min;
     }
     
+    // Вывод массива минимальных элементов
     printf("\nМинимальные элементы каждой строки:\n");
-    for (int i = 0; i < n; i++) {
-        printf("%d ", min_array[i]);
+    for (int i = 0; i < rows; i++) {
+        printf("Строка %2d: %d\n", i + 1, row_minima[i]);
     }
-    printf("\n");
     
+    // Вычисление произведения всех минимальных элементов
     long long product = 1;
-    for (int i = 0; i < n; i++) {
-        product *= min_array[i];
+    for (int i = 0; i < rows; i++) {
+        product *= row_minima[i];
     }
     
-    printf("\nПроизведение минимальных элементов: %lld\n", product);
+    printf("\nПроизведение минимальных элементов (P): %lld\n", product);
     
-    for (int i = 0; i < n; i++) {
+    // Замена минимальных элементов на вычисленное произведение
+    for (int i = 0; i < rows; i++) {
         int min_index = 0;
         int min_value = matrix[i][0];
         
-        for (int j = 1; j < m; j++) {
+        // Поиск индекса минимального элемента
+        for (int j = 1; j < cols; j++) {
             if (matrix[i][j] < min_value) {
                 min_value = matrix[i][j];
                 min_index = j;
             }
         }
         
+        // Замена найденного элемента
         matrix[i][min_index] = (int)product;
     }
     
-    printf("\nИзмененная матрица:\n");
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < m; j++) {
-            printf("%4d ", matrix[i][j]);
+    // Вывод модифицированной матрицы
+    printf("\n=== МОДИФИЦИРОВАННАЯ МАТРИЦА ===\n");
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            printf("%5d", matrix[i][j]);
         }
         printf("\n");
     }
     
-    for (int i = 0; i < n; i++) {
+    // Освобождение выделенной памяти
+    for (int i = 0; i < rows; i++) {
         free(matrix[i]);
     }
     free(matrix);
-    free(min_array);
+    free(row_minima);
     
-    return 0;
+    printf("\nПрограмма успешно завершена.\n");
+    return EXIT_SUCCESS;
 }
