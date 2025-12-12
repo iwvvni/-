@@ -1,0 +1,112 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(int argc, char** argv) {
+    if (argc != 2) {
+        printf("Ошибка: Использование: %s <имя_файла>\n", argv[0]);
+        return 1;
+    }
+    
+    char* filename = argv[1];
+    
+    FILE* file = fopen(filename, "r");
+    if (file == NULL) {
+        printf("Ошибка: Не удалось открыть файл '%s'\n", filename);
+        return 1;
+    }
+    
+    int n, m;
+    if (fscanf(file, "%d %d", &n, &m) != 2) {
+        printf("Ошибка: Некорректный формат файла\n");
+        fclose(file);
+        return 1;
+    }
+    
+    if (n <= 0 || m <= 0) {
+        printf("Ошибка: Размеры матрицы должны быть положительными\n");
+        fclose(file);
+        return 1;
+    }
+    
+    int matrix = (int)malloc(n * sizeof(int*));
+    for (int i = 0; i < n; i++) {
+        matrix[i] = (int*)malloc(m * sizeof(int));
+    }
+    
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++) {
+            if (fscanf(file, "%d", &matrix[i][j]) != 1) {
+                printf("Ошибка: Недостаточно данных в файле\n");
+                fclose(file);
+                for (int k = 0; k <= i; k++) free(matrix[k]);
+                free(matrix);
+                return 1;
+            }
+        }
+    }
+    
+    fclose(file);
+    
+    printf("\nИсходная матрица %dx%d:\n", n, m);
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++) {
+            printf("%4d ", matrix[i][j]);
+        }
+        printf("\n");
+    }
+    
+    int* min_array = (int*)malloc(n * sizeof(int));
+    
+    for (int i = 0; i < n; i++) {
+        int min = matrix[i][0];
+        for (int j = 1; j < m; j++) {
+            if (matrix[i][j] < min) {
+                min = matrix[i][j];
+            }
+        }
+        min_array[i] = min;
+    }
+    
+    printf("\nМинимальные элементы каждой строки:\n");
+    for (int i = 0; i < n; i++) {
+        printf("%d ", min_array[i]);
+    }
+    printf("\n");
+    
+    long long product = 1;
+    for (int i = 0; i < n; i++) {
+        product *= min_array[i];
+    }
+    
+    printf("\nПроизведение минимальных элементов: %lld\n", product);
+    
+    for (int i = 0; i < n; i++) {
+        int min_index = 0;
+        int min_value = matrix[i][0];
+        
+        for (int j = 1; j < m; j++) {
+            if (matrix[i][j] < min_value) {
+                min_value = matrix[i][j];
+                min_index = j;
+            }
+        }
+        
+        matrix[i][min_index] = (int)product;
+    }
+    
+    printf("\nИзмененная матрица:\n");
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++) {
+            printf("%4d ", matrix[i][j]);
+        }
+        printf("\n");
+    }
+    
+    for (int i = 0; i < n; i++) {
+        free(matrix[i]);
+    }
+    free(matrix);
+    free(min_array);
+    
+    return 0;
+}
